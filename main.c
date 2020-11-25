@@ -13,7 +13,7 @@ typedef struct{
 } t_categoria;
 
 typedef struct{
-    int tipo; //1 crédito, -1 débito
+    int tipo; // 1 = crédito | -1 = débito
     t_data data;
     char descricao[100];
     int categoria;
@@ -86,17 +86,17 @@ t_data trataData(char* entrada){
 }
 
 void tomaTipo(t_transacao* transacao){
-    char entrada[2] = " ";
-    while(entrada[0] != 'c' && entrada[0] != 'C' && entrada[0] != 'd' && entrada[0] != 'D'){
-        printf("C: crédito\nD: débito\n");
+    int entrada = -1;
+    while(entrada != 1 && entrada != 2){
+        printf("1. Credito\n2. Debito\n");
         printf("Tipo da transacao: ");
         fflush(stdin);
-        fgets(entrada, 2, stdin);
+        scanf("%d", &entrada);
         printf("\n");
     }
-    if(entrada[0] == 'c' || entrada[0] == 'C'){
+    if(entrada == 1){
         transacao->tipo = 1;
-    }else if(entrada[0] == 'd' || entrada[0] == 'D'){
+    }else if(entrada == 2){
         transacao->tipo = -1;
     }
     fflush(stdin);
@@ -157,12 +157,91 @@ void tomaValor(t_transacao* transacao){
 }
 
 void apresentaTransacao(t_transacao* transacao, t_arquivo* arquivo){
-    printf("Transacao criada com sucesso!\n");
+    printf("Resumo da transacao:\n");
     printf("Data: %02d/%02d/%04d\n", transacao->data.dia, transacao->data.mes, transacao->data.ano);
     transacao->tipo == 1 ? printf("Operacao de credito\n") : printf("Operacao de debito\n");
     printf("Descricao: %s", transacao->descricao);
     printf("Categoria: %s\n", arquivo->categorias[transacao->categoria]);
     printf("Valor: R$%.2f\n", transacao->valor);
+    printf("\n");
+}
+
+void incluiTransacao(t_transacao* transacao, t_arquivo* arquivo){
+    transacao->valor *= transacao->tipo;
+    arquivo->transacoes[arquivo->qnt_transacoes] = *transacao;
+    arquivo->qnt_transacoes++;
+    arquivo->saldo += transacao->valor;
+    salvarArquivo(arquivo);
+    printf("Transacao adicionada com sucesso!\n\n");
+    fflush(stdin);
+}
+
+//Declaração da função confirmaTransação() para resolver o warning de função não declarada
+void confirmaTransacao();
+
+void editaTransacao(t_transacao* transacao, t_arquivo* arquivo){
+    int entrada = 0;
+    while(entrada < 1 || entrada > 6){
+        printf("Selecione qual informacao voce deseja editar:\n");
+        printf("1. Tipo (credito ou debito) \n");
+        printf("2. Data \n");
+        printf("3. Descricao \n");
+        printf("4. Categoria \n");
+        printf("5. Valor \n");
+        printf("6. Voltar");
+        printf("Indique a opcao desejada: ");
+        scanf("%d", &entrada);
+        printf("\n");
+        switch(entrada){
+        case 1:
+            tomaTipo(transacao);
+            break;
+        case 2:
+            tomaData(transacao);
+            break;
+        case 3:
+            tomaDescricao(transacao);
+            break;
+        case 4:
+            tomaCategoria(transacao, arquivo);
+            break;
+        case 5:
+            tomaValor(transacao);
+            break;
+        case 6:
+            break;
+        default:
+            break;
+        }
+    }
+    apresentaTransacao(transacao, arquivo);
+    confirmaTransacao(transacao, arquivo);
+}
+
+
+void confirmaTransacao(t_transacao* transacao, t_arquivo* arquivo){
+    int entrada = 0;
+    while(entrada < 1 || entrada > 3){
+        printf("Confirmar transacao?\n");
+        printf("1. Confirmar\n");
+        printf("2. Editar\n");
+        printf("3. cancelar\n");
+        printf("Indique a opcao desejada: ");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    switch(entrada){
+    case 1:
+        incluiTransacao(transacao, arquivo);
+        break;
+    case 2:
+        editaTransacao(transacao, arquivo);
+        break;
+    case 3:
+    default:
+        break;
+    }
 }
 
 void criarTransacao(t_arquivo* arquivo){
@@ -173,16 +252,56 @@ void criarTransacao(t_arquivo* arquivo){
     tomaCategoria(&transacao, arquivo);
     tomaValor(&transacao);
     apresentaTransacao(&transacao, arquivo);
-    //incluiTransacao(transacao, arquivo);
+    confirmaTransacao(&transacao, arquivo);
 }
 
-void editarTransacao(t_arquivo* arquivo){}
+void trocaTransacoes(t_arquivo* arquivo, int j){
+    t_transacao temp = arquivo->transacoes[j];
+    arquivo->transacoes[j] = arquivo->transacoes[j+1];
+    arquivo->transacoes[j+1] = temp;
+}
+
+int comparaDatasTransacoes(t_transacao t1, t_transacao t2){
+    //t1 mais recente que t2    +1
+    //t1 mesma data que t2      0
+    //t1 mais antigo que t2     -1
+    if(t1.data.ano > t2.data.ano){
+        return 1;
+    }else if(t1.data.ano < t2.data.ano){
+        return -1;
+    }else{
+        if(t1.data.mes > t2.data.mes){
+            return 1;
+        }else if(t1.data.mes < t2.data.mes){
+            return -1;
+        }else{
+            if(t1.data.dia > t2.data.dia){
+                return 1;
+            }else if(t1.data.dia < t2.data.dia){
+                return -1;
+            }else{
+                return 0;
+            }
+        }
+    }
+}
+
+void ordenaTransacoes(t_arquivo* arquivo){
+    for(int i = 0; i < arquivo->qnt_transacoes; i++){
+        for(int j = 0; j < arquivo->qnt_transacoes-1; j++){
+            if(comparaDatasTransacoes(arquivo->transacoes[j], arquivo->transacoes[j+1]) == 1){
+                trocaTransacoes(arquivo, j);
+            }
+        }
+    }
+    salvarArquivo(arquivo);
+}
+
+void atualizarTransacao(t_arquivo* arquivo){}
 void apagarTransacao(t_arquivo* arquivo){}
 void gerarRelatorio(t_arquivo* arquivo){}
 void criarCategoria(t_arquivo* arquivo){}
 void editarCategoria(t_arquivo* arquivo){}
-
-
 
 
 int main(void){
@@ -193,7 +312,6 @@ int main(void){
         printf("Data: %02d/%02d/%04d\n", arquivo.transacoes[i].data.dia, arquivo.transacoes[i].data.mes, arquivo.transacoes[i].data.ano);
         printf("Valor: %.2f\n\n", arquivo.transacoes[i].valor);
     }
-    criarTransacao(&arquivo);
-
+    //ordenaTransacoes(&arquivo);
 return 0;
 }
