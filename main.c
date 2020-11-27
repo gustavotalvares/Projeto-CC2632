@@ -482,8 +482,75 @@ void vizualizarTransacoes(t_arquivo* arquivo){
     printf("%d transacoes impressas\n", qnt_transacoes);
 }
 
-void atualizarTransacao(t_arquivo* arquivo){}
+void atualizarTransacao(t_arquivo* arquivo){
+    //Define a transacao a ser editada
+    int entrada = -1;
+    while(entrada < 0){
+        printf("Editar Transacao\n");
+        printf("Entre com o ID da transacao: ");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    int id_transacao = entrada - 1;
+
+    t_transacao transacao = arquivo->transacoes[id_transacao];
+    imprimeTransacao(transacao, entrada, arquivo);
+
+    while(entrada < 0 || entrada > 5){
+        printf("Selecione qual informacao voce deseja editar:\n");
+        printf("1. Tipo (credito ou debito) \n");
+        printf("2. Data \n");
+        printf("3. Descricao \n");
+        printf("4. Categoria \n");
+        printf("5. Valor \n");
+        printf("0. Cancelar e voltar ao menu inicial\n");
+        printf("Indique a opcao desejada: ");
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    switch(entrada){
+    case 1:
+        tomaTipo(&transacao);
+        break;
+    case 2:
+        tomaData(&transacao.data);
+        break;
+    case 3:
+        tomaDescricao(&transacao);
+        break;
+    case 4:
+        tomaCategoria(&transacao, arquivo);
+        break;
+    case 5:
+        tomaValor(&transacao);
+        break;
+    case 0:
+        break;
+    default:
+        break;
+    }
+    if(transacao.tipo != arquivo->transacoes[id_transacao].tipo){
+        transacao.valor *= -1;
+    }
+    if(transacao.valor != arquivo->transacoes[id_transacao].valor){
+        arquivo->saldo += transacao.valor - arquivo->transacoes[id_transacao].valor;
+    }
+
+    if(comparaDatas(transacao.data, arquivo->transacoes[id_transacao].data) != 0){
+        arquivo->transacoes[id_transacao] = transacao;
+        ordenaTransacoes(arquivo);
+    }else{
+        arquivo->transacoes[id_transacao] = transacao;
+    }
+
+    if(entrada != 0){
+        salvarArquivo(arquivo);
+        printf("Transacao alterada com sucesso!\n\n");
+    }
+}
 void apagarTransacao(t_arquivo* arquivo){}
+//gerarRelatorio pode ser chamado dentro do visualizarTransacoes()
 void gerarRelatorio(t_arquivo* arquivo){}
 void criarCategoria(t_arquivo* arquivo){}
 void editarCategoria(t_arquivo* arquivo){}
