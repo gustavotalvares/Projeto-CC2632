@@ -409,7 +409,7 @@ int filtraTransacoes(t_transacao** transacoes, int** id_transacoes, int categori
     }
     return qnt_transacoes;
 }
-
+void geraRelatorio();
 void vizualizarTransacoes(t_arquivo* arquivo){
     // define datas iniciais e finais
     t_data data_i = {1, 1, 0};
@@ -472,13 +472,27 @@ void vizualizarTransacoes(t_arquivo* arquivo){
     for(int i = 0; i < qnt_transacoes; i++){
         imprimeTransacao(transacoes[i], id_transacoes[i], arquivo);
     }
+
+    entrada = 0;
+    while(entrada != 1 && entrada != 2){
+        printf("Voce gostaria de gerar um relatorio dessas transacoes?\n");
+        printf("1. Sim, gerar relatorio\n");
+        printf("2. Nao, voltar ao menu inicial\n");
+        printf("Insira a opcao desejada: ");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    fflush(stdin);
+    if(entrada == 1){
+        geraRelatorio(transacoes, qnt_transacoes, arquivo);
+    }
 }
 
 void atualizarTransacao(t_arquivo* arquivo){
     //Define a transacao a ser editada
     int entrada = -1;
     while(entrada < 0 || entrada > arquivo->qnt_transacoes){
-        printf("Editar Transacao\n");
         printf("Entre com o ID da transacao: ");
         fflush(stdin);
         scanf("%d", &entrada);
@@ -546,7 +560,6 @@ void atualizarTransacao(t_arquivo* arquivo){
 void apagarTransacao(t_arquivo* arquivo){
     int entrada = 0;
     while(entrada < 1 || entrada > arquivo->qnt_transacoes){
-        printf("Apagar transacao\n");
         printf("Entre com o ID da transacao: ");
         fflush(stdin);
         scanf("%d", &entrada);
@@ -626,7 +639,7 @@ void criarCategoria(t_arquivo* arquivo){
     char entrada[25];
     printf("Atencao, evite criar muitas categorias\n");
     printf("pois nao sera possivel excluir qualquer\n");
-    printf("categoria ser apos criada.\n");
+    printf("categoria apos ser criada.\n");
     printf("\n");
     while(entrada[0] != '1' && entrada[0] != '2'){
         printf("1. Continuar\n");
@@ -644,7 +657,6 @@ void criarCategoria(t_arquivo* arquivo){
 
 void editarCategoria(t_arquivo* arquivo){
     int entrada = 0;
-    printf("Editar categoria\n");
     while(entrada < 1 || entrada > arquivo->qnt_categorias){
         printf("Qual categoria voce deseja editar?\n");
         imprimeCategorias(arquivo);
@@ -665,33 +677,62 @@ void editarCategoria(t_arquivo* arquivo){
     printf("\n");
 }
 
-void insereCC(FILE* relatorio){
+void insereCSS(FILE* relatorio){
     FILE* css = fopen("CSStemplate.txt", "r");
     char c;
     while((c = fgetc(css)) != EOF){
         fputc(c, relatorio);
     }
+    fclose(css);
 }
 
 void geraHeader(FILE* relatorio){
     fprintf(relatorio, "<head>\n");
     fprintf(relatorio, "<meta charset=\"UTF-8\">\n");
-    fprintf(relatorio, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
+    fprintf(relatorio, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n");
     fprintf(relatorio, "<title>Relatório</title>\n");
     insereCSS(relatorio);
     fprintf(relatorio, "</head>\n");
 }
 
+
+void geraListaTransacoes(FILE* relatorio, t_transacao* transacoes, int n, t_arquivo* arquivo){
+    fprintf(relatorio, "<tr id=\"cabecalho\">\n");
+    fprintf(relatorio, "<th class=\"dat\">DATA</th>\n");
+    fprintf(relatorio, "<th class=\"cat\">CATEGORIA</th>\n");
+    fprintf(relatorio, "<th class=\"desc\">DESCRIÇÃO</th>\n");
+    fprintf(relatorio, "<th>VALOR</th>\n");
+    fprintf(relatorio, "</tr>\n");
+    for(int i = 0; i < n; i++){
+        if(transacoes[i].tipo == 1){
+            fprintf(relatorio, "<tr class=\"credito\">\n");
+        } else {
+            fprintf(relatorio, "<tr class=\"debito\">\n");
+        }
+        fprintf(relatorio, "<td class=\"dat\">%02d/%02d/%04d</td>\n", transacoes[i].data.dia, transacoes[i].data.mes, transacoes[i].data.ano);
+        fprintf(relatorio, "<td class=\"cat\">%s</td>\n", arquivo->categorias[transacoes[i].categoria]);
+        fprintf(relatorio, "<td class=\"desc\">%s</td>\n", transacoes[i].descricao);
+        if(transacoes[i].tipo == 1){
+            fprintf(relatorio, "<td>+ R$%.2f</td>\n", transacoes[i].valor*transacoes[i].tipo);
+        }else{
+            fprintf(relatorio, "<td>- R$%.2f</td>\n", transacoes[i].valor*transacoes[i].tipo);
+        }
+        fprintf(relatorio, "</tr>\n");
+    }
+}
+
 void geraRelatorio(t_transacao* transacoes, int n, t_arquivo* arquivo){
-    FILE* relatorio = fopen("relatorio.txt", "w");
-        fprintf(relatorio, "!DOCTYPE html\n");
-        fprintf(relatorio, "<html>\n");
-        geraHeader(relatorio);
-        fprintf(relatorio, "<body>\n");
-        geraListaTransacoes(relatorio, transacoes, n, arquivo);
-        fprintf("</body>\n");
-        fprintf("</html>\n");
-        fclose(relatorio);
+    FILE* relatorio = fopen("relatorio.html", "w");
+    fprintf(relatorio, "<!DOCTYPE html>\n");
+    fprintf(relatorio, "<html>\n");
+    geraHeader(relatorio);
+    fprintf(relatorio, "<body>\n");
+    fprintf(relatorio, "<table cellspacing=0 cellpadding=0>\n");
+    geraListaTransacoes(relatorio, transacoes, n, arquivo);
+    fprintf(relatorio, "</table>");
+    fprintf(relatorio, "</body>\n");
+    fprintf(relatorio, "</html>\n");
+    fclose(relatorio);
 }
 
 void sair(t_arquivo* arquivo){
@@ -700,6 +741,7 @@ void sair(t_arquivo* arquivo){
     exit(0);
 }
 
+/* PARA USO DO DESENVOLVEDOR
 void resetar(t_arquivo* arquivo){
     t_categoria categorias[] = {"Trabalho", "Transporte", "Alimentacao", "Lazer", "Outros"};
     arquivo->categorias = categorias;
@@ -711,6 +753,7 @@ void resetar(t_arquivo* arquivo){
     free(arquivo->transacoes);
     lerArquivo(arquivo);
 }
+*/
 
 int main(void){
     t_arquivo arquivo;
@@ -728,7 +771,7 @@ int main(void){
         printf("4. Apagar transacao\n");
         printf("5. Criar categoria\n");
         printf("6. Editar categoria\n");
-        printf("9. Resetar programa\n");
+        //printf("9. Resetar programa\n");
         printf("0. Sair\n");
         printf("\n");
         printf("Entre com a operacao desejada: ");
@@ -780,9 +823,9 @@ int main(void){
             printf("\n");
             editarCategoria(&arquivo);
             break;
-        case 9:
+        /*case 9:
             resetar(&arquivo);
-            break;
+            break;*/
         case 0:
             sair(&arquivo);
             break;
