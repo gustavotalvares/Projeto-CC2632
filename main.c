@@ -72,7 +72,7 @@ void imprimeTransacao(t_transacao transacao, int id, t_arquivo* arquivo){
     }
     transacao.tipo == 1 ? printf("Tipo:         credito\n") : printf("Tipo:         debito\n");
     printf("Data:         %02d/%02d/%02d\n", transacao.data.dia, transacao.data.mes, transacao.data.ano);
-    printf("Descricao:    %s", transacao.descricao);
+    printf("Descricao:    %s\n", transacao.descricao);
     printf("Categoria:    %s\n", arquivo->categorias[transacao.categoria]);
     printf("Valor:        R$%.2f\n", transacao.valor * transacao.tipo);
     printf("\n");
@@ -128,7 +128,7 @@ void tomaData(t_data* data){
     fflush(stdin);
     *data = data_aux;
 }
-
+void removeEnter();
 void tomaDescricao(t_transacao* transacao){
     char entrada[101] = " ";
     printf("Maximo de 100 caracteres\n");
@@ -136,6 +136,7 @@ void tomaDescricao(t_transacao* transacao){
     fflush(stdin);
     fgets(entrada, 101, stdin);
     strcpy(transacao->descricao, entrada);
+    removeEnter(transacao->descricao, 101);
     fflush(stdin);
     printf("\n");
 }
@@ -641,9 +642,58 @@ void criarCategoria(t_arquivo* arquivo){
     }
 }
 
+void editarCategoria(t_arquivo* arquivo){
+    int entrada = 0;
+    printf("Editar categoria\n");
+    while(entrada < 1 || entrada > arquivo->qnt_categorias){
+        printf("Qual categoria voce deseja editar?\n");
+        imprimeCategorias(arquivo);
+        printf("Insira a opcao desejada: ");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    fflush(stdin);
+    char novoNome[25];
+    printf("Insira o novo nome da categoria: ");
+    fgets(novoNome, 25, stdin);
+    removeEnter(novoNome, 25);
+    strcpy(arquivo->categorias[entrada-1].categoria, novoNome);
+    printf("\n");
+    printf("Categoria alterada com sucesso!\n");
+    salvarArquivo(arquivo);
+    printf("\n");
+}
 
-void gerarRelatorio(t_arquivo* arquivo){}
-void editarCategoria(t_arquivo* arquivo){}
+void insereCC(FILE* relatorio){
+    FILE* css = fopen("CSStemplate.txt", "r");
+    char c;
+    while((c = fgetc(css)) != EOF){
+        fputc(c, relatorio);
+    }
+}
+
+void geraHeader(FILE* relatorio){
+    fprintf(relatorio, "<head>\n");
+    fprintf(relatorio, "<meta charset=\"UTF-8\">\n");
+    fprintf(relatorio, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n")
+    fprintf(relatorio, "<title>Relatório</title>\n");
+    insereCSS(relatorio);
+    fprintf(relatorio, "</head>\n");
+}
+
+void geraRelatorio(t_transacao* transacoes, int n, t_arquivo* arquivo){
+    FILE* relatorio = fopen("relatorio.txt", "w");
+        fprintf(relatorio, "!DOCTYPE html\n");
+        fprintf(relatorio, "<html>\n");
+        geraHeader(relatorio);
+        fprintf(relatorio, "<body>\n");
+        geraListaTransacoes(relatorio, transacoes, n, arquivo);
+        fprintf("</body>\n");
+        fprintf("</html>\n");
+        fclose(relatorio);
+}
+
 void sair(t_arquivo* arquivo){
     free(arquivo->categorias);
     free(arquivo->transacoes);
@@ -677,6 +727,7 @@ int main(void){
         printf("3. Editar transacao\n");
         printf("4. Apagar transacao\n");
         printf("5. Criar categoria\n");
+        printf("6. Editar categoria\n");
         printf("9. Resetar programa\n");
         printf("0. Sair\n");
         printf("\n");
@@ -721,6 +772,13 @@ int main(void){
             printf("########################################\n");
             printf("\n");
             criarCategoria(&arquivo);
+            break;
+        case 6:
+            printf("########################################\n");
+            printf("##          EDITAR CATEGORIA          ##\n");
+            printf("########################################\n");
+            printf("\n");
+            editarCategoria(&arquivo);
             break;
         case 9:
             resetar(&arquivo);
