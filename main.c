@@ -74,7 +74,7 @@ void imprimeTransacao(t_transacao transacao, int id, t_arquivo* arquivo){
     printf("Data:         %02d/%02d/%02d\n", transacao.data.dia, transacao.data.mes, transacao.data.ano);
     printf("Descricao:    %s", transacao.descricao);
     printf("Categoria:    %s\n", arquivo->categorias[transacao.categoria]);
-    printf("Valor:        %.2f\n", transacao.valor);
+    printf("Valor:        R$%.2f\n", transacao.valor * transacao.tipo);
     printf("\n");
 }
 
@@ -169,12 +169,11 @@ void tomaValor(t_transacao* transacao){
     scanf("%f", &entrada);
     fflush(stdin);
     printf("\n");
-    transacao->valor = entrada;
+    transacao->valor = entrada*transacao->tipo;
 }
 
 void incluiTransacao(t_transacao* transacao, t_arquivo* arquivo){
     //Insere a transacao no arquivo
-    transacao->valor *= transacao->tipo;
     arquivo->transacoes[arquivo->qnt_transacoes] = *transacao;
     arquivo->qnt_transacoes++;
     arquivo->saldo += transacao->valor;
@@ -394,7 +393,6 @@ int filtraTransacoes(t_transacao** transacoes, int** id_transacoes, int categori
         for(int i = 0; i < arquivo->qnt_transacoes; i++){
             if(verificaData(&data_i, &data_f, &arquivo->transacoes[i].data)){
                 qnt_transacoes++;
-                printf("Entrou uma\n");
             }
         }
         *transacoes = calloc(sizeof(t_transacao), qnt_transacoes);
@@ -462,30 +460,23 @@ void vizualizarTransacoes(t_arquivo* arquivo){
         tipo = entrada;
     }
 
-    printf("Filtros criados\n");
-    printf("categoria: %d\n", categoria);
-    printf("Tipo: %d\n", tipo);
-
     //Cria os ponteiros transacoes e id_transacoes
     t_transacao* transacoes;
     int* id_transacoes;
 
-    printf("Ponteiros criados\n");
     //Chama a função filtraTransacoes()
     int qnt_transacoes = filtraTransacoes(&transacoes, &id_transacoes, categoria, data_i, data_f, tipo, arquivo);
-    printf("%d transacoes filtradas\n", qnt_transacoes);
 
     //Imprime as transacoes
     for(int i = 0; i < qnt_transacoes; i++){
         imprimeTransacao(transacoes[i], id_transacoes[i], arquivo);
     }
-    printf("%d transacoes impressas\n", qnt_transacoes);
 }
 
 void atualizarTransacao(t_arquivo* arquivo){
     //Define a transacao a ser editada
     int entrada = -1;
-    while(entrada < 0){
+    while(entrada < 0 || entrada > arquivo->qnt_transacoes){
         printf("Editar Transacao\n");
         printf("Entre com o ID da transacao: ");
         fflush(stdin);
@@ -497,6 +488,7 @@ void atualizarTransacao(t_arquivo* arquivo){
     t_transacao transacao = arquivo->transacoes[id_transacao];
     imprimeTransacao(transacao, entrada, arquivo);
 
+    entrada = -1;
     while(entrada < 0 || entrada > 5){
         printf("Selecione qual informacao voce deseja editar:\n");
         printf("1. Tipo (credito ou debito) \n");
@@ -530,11 +522,12 @@ void atualizarTransacao(t_arquivo* arquivo){
     default:
         break;
     }
-    if(transacao.tipo != arquivo->transacoes[id_transacao].tipo){
-        transacao.valor *= -1;
-    }
     if(transacao.valor != arquivo->transacoes[id_transacao].valor){
         arquivo->saldo += transacao.valor - arquivo->transacoes[id_transacao].valor;
+    }
+    if(transacao.tipo != arquivo->transacoes[id_transacao].tipo){
+        transacao.valor *= -1;
+        arquivo->saldo += 2*transacao.valor;
     }
 
     if(comparaDatas(transacao.data, arquivo->transacoes[id_transacao].data) != 0){
@@ -549,11 +542,113 @@ void atualizarTransacao(t_arquivo* arquivo){
         printf("Transacao alterada com sucesso!\n\n");
     }
 }
-void apagarTransacao(t_arquivo* arquivo){}
-//gerarRelatorio pode ser chamado dentro do visualizarTransacoes()
+void apagarTransacao(t_arquivo* arquivo){
+    int entrada = 0;
+    while(entrada < 1 || entrada > arquivo->qnt_transacoes){
+        printf("Apagar transacao\n");
+        printf("Entre com o ID da transacao: ");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    int id_transacao = entrada - 1;
+    imprimeTransacao(arquivo->transacoes[id_transacao], entrada, arquivo);
+    entrada = 0;
+    while(entrada < 1 || entrada >2){
+        printf("Essa acao é irreversivel, voce tem certeza que deseja\n");
+        printf("remover a transacao %05d dos registros?\n", id_transacao+1);
+        printf("1. Sim, remover transacao\n");
+        printf("2. Nao, cancelar e voltar ao menu inicial\n");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+    }
+    fflush(stdin);
+    if(entrada == 1){
+        arquivo->transacoes[id_transacao].data.ano = 5000;
+        ordenaTransacoes(arquivo);
+        arquivo->saldo -= arquivo->transacoes[id_transacao].valor;
+        arquivo->qnt_transacoes--;
+        salvarArquivo(arquivo);
+        printf("Transacao removida com sucesso!\n");
+        printf("\n");
+    }
+
+}
+
+void confirmaCategoria(t_categoria* categoria, t_arquivo* arquivo){
+    int entrada = 0;
+    while(entrada < 1 || entrada > 2){
+        printf("Confirmar criacao da categoria?\n");
+        printf("1. Confirmar\n");
+        printf("2. Cancelar\n");
+        printf("\n");
+        printf("Insira a opcao desejada: ");
+        fflush(stdin);
+        scanf("%d", &entrada);
+        printf("\n");
+        if(entrada == 1){
+            arquivo->categorias = realloc(arquivo->categorias, sizeof(arquivo->qnt_categorias + 2) * sizeof(t_categoria));
+            arquivo->categorias[arquivo->qnt_categorias]  = *categoria;
+            arquivo->qnt_categorias++;
+            salvarArquivo(arquivo);
+            printf("Categoria criada com sucesso!");
+            printf("\n");
+        }if(entrada == 2){
+            printf("Criacao de categoria cancelada.");
+            printf("\n");
+        }
+    }
+
+
+}
+
+void removeEnter(char* string, int n){
+    for(int i = 0; i < n; i++){
+        if(string[i] == '\n'){
+            string[i] = '\0';
+        }
+    }
+}
+
+void tomaNomeCategoria(t_categoria* categoria, t_arquivo* arquivo){
+        printf("Obs.: max. 25 caracteres\n");
+        printf("Nome da categoria: ");
+        fgets(categoria->categoria, 25, stdin);
+        removeEnter(categoria->categoria, 25);
+        printf("\n");
+        confirmaCategoria(categoria, arquivo);
+}
+
+void criarCategoria(t_arquivo* arquivo){
+    t_categoria categoria;
+    char entrada[25];
+    printf("Atencao, evite criar muitas categorias\n");
+    printf("pois nao sera possivel excluir qualquer\n");
+    printf("categoria ser apos criada.\n");
+    printf("\n");
+    while(entrada[0] != '1' && entrada[0] != '2'){
+        printf("1. Continuar\n");
+        printf("2. Cancelar e voltar ao menu inicial\n");
+        printf("Insira a opcao desejada: ");
+        fflush(stdin);
+        fgets(entrada, 2, stdin);
+    }
+    fflush(stdin);
+    printf("\n");
+    if(entrada[0] == '1'){
+        tomaNomeCategoria(&categoria, arquivo);
+    }
+}
+
+
 void gerarRelatorio(t_arquivo* arquivo){}
-void criarCategoria(t_arquivo* arquivo){}
 void editarCategoria(t_arquivo* arquivo){}
+void sair(t_arquivo* arquivo){
+    free(arquivo->categorias);
+    free(arquivo->transacoes);
+    exit(0);
+}
 
 void resetar(t_arquivo* arquivo){
     t_categoria categorias[] = {"Trabalho", "Transporte", "Alimentacao", "Lazer", "Outros"};
@@ -562,15 +657,83 @@ void resetar(t_arquivo* arquivo){
     arquivo->qnt_transacoes = 0;
     arquivo->saldo = 0;
     salvarArquivo(arquivo);
+    free(arquivo->categorias);
+    free(arquivo->transacoes);
+    lerArquivo(arquivo);
 }
 
 int main(void){
     t_arquivo arquivo;
     lerArquivo(&arquivo);
     while(1){
-        printf("Saldo: %.2f\n\n", arquivo.saldo);
-        imprimeTransacoes(arquivo.transacoes, arquivo.qnt_transacoes, &arquivo);
-        atualizarTransacao(&arquivo);
+        printf("########################################\n");
+        printf("##                MENU                ##\n");
+        printf("########################################\n");
+        printf("\n");
+        printf("Saldo: R$%.2f\n", arquivo.saldo);
+        printf("\n");
+        printf("1. Adicionar transacao\n");
+        printf("2. Visualizar transacoes\n");
+        printf("3. Editar transacao\n");
+        printf("4. Apagar transacao\n");
+        printf("5. Criar categoria\n");
+        printf("9. Resetar programa\n");
+        printf("0. Sair\n");
+        printf("\n");
+        printf("Entre com a operacao desejada: ");
+        fflush(stdin);
+        int escolha;
+        scanf("%d", &escolha);
+        fflush(stdin);
+        printf("\n");
+        switch(escolha){
+        case 1:
+            printf("########################################\n");
+            printf("##        ADICIONAR TRANSACAO         ##\n");
+            printf("########################################\n");
+            printf("\n");
+            criarTransacao(&arquivo);
+            break;
+        case 2:
+            printf("########################################\n");
+            printf("##       VISUALIZAR TRANSACOES        ##\n");
+            printf("########################################\n");
+            printf("\n");
+            vizualizarTransacoes(&arquivo);
+            break;
+        case 3:
+            printf("########################################\n");
+            printf("##          EDITAR TRANSACAO          ##\n");
+            printf("########################################\n");
+            printf("\n");
+            atualizarTransacao(&arquivo);
+            break;
+        case 4:
+            printf("########################################\n");
+            printf("##          APAGAR TRANSACAO          ##\n");
+            printf("########################################\n");
+            printf("\n");
+            apagarTransacao(&arquivo);
+            break;
+        case 5:
+            printf("########################################\n");
+            printf("##          CRIAR CATEGORIA           ##\n");
+            printf("########################################\n");
+            printf("\n");
+            criarCategoria(&arquivo);
+            break;
+        case 9:
+            resetar(&arquivo);
+            break;
+        case 0:
+            sair(&arquivo);
+            break;
+        default:
+            printf("Operacao invalida, tente novamente\n");
+            printf("\n");
+            break;
+        }
+
     }
     //vizualizarTransacoes(&arquivo);
     //resetar(&arquivo);
